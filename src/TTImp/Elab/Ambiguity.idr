@@ -321,6 +321,7 @@ export
 checkAlternative : {vars : _} ->
                    {auto c : Ref Ctxt Defs} ->
                    {auto m : Ref MD Metadata} ->
+                   {auto l : Ref UCs UConstraints} ->
                    {auto u : Ref UST UState} ->
                    {auto e : Ref EST (EState vars)} ->
                    RigCount -> ElabInfo ->

@@ -117,9 +117,10 @@ elabTermSub {vars} defining mode opts nest env env' sub tm ty
 
          defs <- get Ctxt
          e <- newRef EST (initEStateSub defining env' sub)
+         l <- newRef UCs initUCs
          let rigc = getRigNeeded mode
 
-         (chktm, chkty) <- check {e} rigc (initElabInfo mode) nest env tm ty
+         (chktm, chkty) <- check {l} {e} rigc (initElabInfo mode) nest env tm ty
          -- Final retry of constraints and delayed elaborations
          -- - Solve any constraints, then retry any delayed elaborations
          -- - Finally, last attempts at solving constraints, but this

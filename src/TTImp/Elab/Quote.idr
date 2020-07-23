@@ -161,6 +161,7 @@ mutual
 bindUnqs : {vars : _} ->
            {auto c : Ref Ctxt Defs} ->
            {auto m : Ref MD Metadata} ->
+           {auto l : Ref UCs UConstraints} ->
            {auto u : Ref UST UState} ->
            {auto e : Ref EST (EState vars)} ->
            List (Name, FC, RawImp) ->
@@ -187,6 +188,7 @@ export
 checkQuote : {vars : _} ->
              {auto c : Ref Ctxt Defs} ->
              {auto m : Ref MD Metadata} ->
+             {auto l : Ref UCs UConstraints} ->
              {auto u : Ref UST UState} ->
              {auto e : Ref EST (EState vars)} ->
              RigCount -> ElabInfo ->
@@ -208,6 +210,7 @@ export
 checkQuoteName : {vars : _} ->
                  {auto c : Ref Ctxt Defs} ->
                  {auto m : Ref MD Metadata} ->
+                 {auto l : Ref UCs UConstraints} ->
                  {auto u : Ref UST UState} ->
                  {auto e : Ref EST (EState vars)} ->
                  RigCount -> ElabInfo ->
@@ -224,6 +227,7 @@ export
 checkQuoteDecl : {vars : _} ->
                  {auto c : Ref Ctxt Defs} ->
                  {auto m : Ref MD Metadata} ->
+                 {auto l : Ref UCs UConstraints} ->
                  {auto u : Ref UST UState} ->
                  {auto e : Ref EST (EState vars)} ->
                  RigCount -> ElabInfo ->

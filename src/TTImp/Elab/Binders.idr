@@ -31,6 +31,7 @@ dropName n nest = record { names $= drop } nest
 checkPiInfo : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
               {auto m : Ref MD Metadata} ->
+              {auto l : Ref UCs UConstraints} ->
               {auto u : Ref UST UState} ->
               {auto e : Ref EST (EState vars)} ->
               RigCount -> ElabInfo -> NestedNames vars -> Env Term vars ->
@@ -47,6 +48,7 @@ export
 checkPi : {vars : _} ->
           {auto c : Ref Ctxt Defs} ->
           {auto m : Ref MD Metadata} ->
+          {auto l : Ref UCs UConstraints} ->
           {auto u : Ref UST UState} ->
           {auto e : Ref EST (EState vars)} ->
           RigCount -> ElabInfo ->
@@ -86,6 +88,7 @@ findLamRig (Just expty)
 inferLambda : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
               {auto m : Ref MD Metadata} ->
+              {auto l : Ref UCs UConstraints} ->
               {auto u : Ref UST UState} ->
               {auto e : Ref EST (EState vars)} ->
               RigCount -> ElabInfo ->
@@ -127,6 +130,7 @@ export
 checkLambda : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
               {auto m : Ref MD Metadata} ->
+              {auto l : Ref UCs UConstraints} ->
               {auto u : Ref UST UState} ->
               {auto e : Ref EST (EState vars)} ->
               RigCount -> ElabInfo ->
@@ -183,6 +187,7 @@ export
 checkLet : {vars : _} ->
            {auto c : Ref Ctxt Defs} ->
            {auto m : Ref MD Metadata} ->
+           {auto l : Ref UCs UConstraints} ->
            {auto u : Ref UST UState} ->
            {auto e : Ref EST (EState vars)} ->
            RigCount -> ElabInfo ->

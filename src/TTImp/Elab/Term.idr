@@ -116,6 +116,7 @@ insertImpLam env tm _ = pure tm
 checkTerm : {vars : _} ->
             {auto c : Ref Ctxt Defs} ->
             {auto m : Ref MD Metadata} ->
+            {auto l : Ref UCs UConstraints} ->
             {auto u : Ref UST UState} ->
             {auto e : Ref EST (EState vars)} ->
             RigCount -> ElabInfo ->
@@ -272,6 +273,7 @@ checkTerm rig elabinfo nest env (IWithUnambigNames fc ns rhs) exp
 -- check : {vars : _} ->
 --         {auto c : Ref Ctxt Defs} ->
 --         {auto m : Ref MD Metadata} ->
+--         {auto l : Ref UCs UConstraints} ->
 --         {auto u : Ref UST UState} ->
 --         {auto e : Ref EST (EState vars)} ->
 --         RigCount -> ElabInfo -> Env Term vars -> RawImp ->
@@ -302,6 +304,7 @@ TTImp.Elab.Check.check rigc elabinfo nest env tm_in exp
 -- checkImp : {vars : _} ->
 --            {auto c : Ref Ctxt Defs} ->
 --            {auto m : Ref MD Metadata} ->
+--            {auto l : Ref UCs UConstraints} ->
 --            {auto u : Ref UST UState} ->
 --            {auto e : Ref EST (EState vars)} ->
 --            RigCount -> ElabInfo -> Env Term vars -> RawImp -> Maybe (Glued vars) ->

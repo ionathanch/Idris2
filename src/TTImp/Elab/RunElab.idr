@@ -82,8 +82,9 @@ elabScript fc nest env (NDCon nfc nm t ar args) exp
              ttimp' <- evalClosure defs ttimp
              tidx <- resolveName (UN "[elaborator script]")
              e <- newRef EST (initEState tidx env)
+             l <- newRef UCs initUCs
              (checktm, _) <- runDelays 0 $
-                     check top (initElabInfo InExpr) nest env !(reify defs ttimp')
+                     check {l} {e} top (initElabInfo InExpr) nest env !(reify defs ttimp')
                            (Just (glueBack defs env exp'))
              empty <- clearDefs defs
              nf empty env checktm
@@ -168,6 +169,7 @@ export
 checkRunElab : {vars : _} ->
                {auto c : Ref Ctxt Defs} ->
                {auto m : Ref MD Metadata} ->
+               {auto l : Ref UCs UConstraints} ->
                {auto u : Ref UST UState} ->
                {auto e : Ref EST (EState vars)} ->
                RigCount -> ElabInfo ->

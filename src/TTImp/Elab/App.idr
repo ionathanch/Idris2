@@ -133,6 +133,7 @@ mutual
   makeImplicit : {vars : _} ->
                  {auto c : Ref Ctxt Defs} ->
                  {auto m : Ref MD Metadata} ->
+                 {auto l : Ref UCs UConstraints} ->
                  {auto u : Ref UST UState} ->
                  {auto e : Ref EST (EState vars)} ->
                  RigCount -> RigCount -> ElabInfo ->
@@ -162,6 +163,7 @@ mutual
   makeAutoImplicit : {vars : _} ->
                      {auto c : Ref Ctxt Defs} ->
                      {auto m : Ref MD Metadata} ->
+                     {auto l : Ref UCs UConstraints} ->
                      {auto u : Ref UST UState} ->
                      {auto e : Ref EST (EState vars)} ->
                      RigCount -> RigCount -> ElabInfo ->
@@ -211,6 +213,7 @@ mutual
   makeDefImplicit : {vars : _} ->
                     {auto c : Ref Ctxt Defs} ->
                     {auto m : Ref MD Metadata} ->
+                    {auto l : Ref UCs UConstraints} ->
                     {auto u : Ref UST UState} ->
                     {auto e : Ref EST (EState vars)} ->
                     RigCount -> RigCount -> ElabInfo ->
@@ -370,6 +373,7 @@ mutual
   checkRestApp : {vars : _} ->
                  {auto c : Ref Ctxt Defs} ->
                  {auto m : Ref MD Metadata} ->
+                 {auto l : Ref UCs UConstraints} ->
                  {auto u : Ref UST UState} ->
                  {auto e : Ref EST (EState vars)} ->
                  RigCount -> RigCount -> ElabInfo ->
@@ -457,6 +461,7 @@ mutual
   checkAppWith : {vars : _} ->
                  {auto c : Ref Ctxt Defs} ->
                  {auto m : Ref MD Metadata} ->
+                 {auto l : Ref UCs UConstraints} ->
                  {auto u : Ref UST UState} ->
                  {auto e : Ref EST (EState vars)} ->
                  RigCount -> ElabInfo ->
@@ -626,6 +631,7 @@ export
 checkApp : {vars : _} ->
            {auto c : Ref Ctxt Defs} ->
            {auto m : Ref MD Metadata} ->
+           {auto l : Ref UCs UConstraints} ->
            {auto u : Ref UST UState} ->
            {auto e : Ref EST (EState vars)} ->
            RigCount -> ElabInfo ->

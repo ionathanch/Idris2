@@ -602,12 +602,13 @@ anyOne fc [] = throw (GenericMsg fc "No elaborators provided")
 anyOne fc [(tm, elab)] = elab
 anyOne fc ((tm, elab) :: es) = try elab (anyOne fc es)
 
--- Implemented in TTImp.Elab.Term; delaring just the type allows us to split
+-- Implemented in TTImp.Elab.Term; declaring just the type allows us to split
 -- the elaborator over multiple files more easily
 export
 check : {vars : _} ->
         {auto c : Ref Ctxt Defs} ->
         {auto m : Ref MD Metadata} ->
+        {auto l : Ref UCs UConstraints} ->
         {auto u : Ref UST UState} ->
         {auto e : Ref EST (EState vars)} ->
         RigCount -> ElabInfo ->
@@ -620,6 +621,7 @@ export
 checkImp : {vars : _} ->
            {auto c : Ref Ctxt Defs} ->
            {auto m : Ref MD Metadata} ->
+           {auto l : Ref UCs UConstraints} ->
            {auto u : Ref UST UState} ->
            {auto e : Ref EST (EState vars)} ->
            RigCount -> ElabInfo ->
@@ -642,6 +644,7 @@ processDecl : {vars : _} ->
 convertWithLazy
         : {vars : _} ->
           {auto c : Ref Ctxt Defs} ->
+          {auto l : Ref UCs UConstraints} ->
           {auto u : Ref UST UState} ->
           {auto e : Ref EST (EState vars)} ->
           (withLazy : Bool) -> (precise : Bool) ->
@@ -688,6 +691,7 @@ convertWithLazy withLazy prec fc elabinfo env x y
 export
 convert : {vars : _} ->
           {auto c : Ref Ctxt Defs} ->
+          {auto l : Ref UCs UConstraints} ->
           {auto u : Ref UST UState} ->
           {auto e : Ref EST (EState vars)} ->
           FC -> ElabInfo -> Env Term vars -> Glued vars -> Glued vars ->
@@ -697,6 +701,7 @@ convert = convertWithLazy False False
 export
 convertP : {vars : _} ->
            {auto c : Ref Ctxt Defs} ->
+           {auto l : Ref UCs UConstraints} ->
            {auto u : Ref UST UState} ->
            {auto e : Ref EST (EState vars)} ->
            (precise : Bool) ->
@@ -712,6 +717,7 @@ convertP = convertWithLazy False
 export
 checkExpP : {vars : _} ->
             {auto c : Ref Ctxt Defs} ->
+            {auto l : Ref UCs UConstraints} ->
             {auto u : Ref UST UState} ->
             {auto e : Ref EST (EState vars)} ->
             RigCount -> (precise : Bool) -> ElabInfo -> Env Term vars -> FC ->
@@ -747,6 +753,7 @@ checkExpP rig prec elabinfo env fc tm got Nothing = pure (tm, got)
 export
 checkExp : {vars : _} ->
            {auto c : Ref Ctxt Defs} ->
+           {auto l : Ref UCs UConstraints} ->
            {auto u : Ref UST UState} ->
            {auto e : Ref EST (EState vars)} ->
            RigCount -> ElabInfo -> Env Term vars -> FC ->

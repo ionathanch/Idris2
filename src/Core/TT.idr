@@ -7,6 +7,7 @@ import Data.Bool.Extra
 import Data.List
 import Data.NameMap
 import Data.Vect
+import Data.Strings
 import Decidable.Equality
 
 import public Algebra
@@ -645,6 +646,65 @@ isTotal = MkTotality Unchecked IsCovering
 export
 notCovering : Totality
 notCovering = MkTotality Unchecked (MissingCases [])
+
+-- Universe expressions for universe cumulativity checking
+public export
+data UExp = UVar String Int -- universe variable, with source file to disambiguate
+          | UVal Int -- explicit universe level
+
+export
+Eq UExp where
+  (UVar ns x) == (UVar ms y) = ns == ms && x == y
+  (UVal x)    == (UVal y)    = x == y
+  _ == _ = False
+
+export
+Show UExp where
+  show (UVar ns x) =
+    if x < 26 then
+      ns ++ "." ++ singleton (chr (x + ord 'a'))
+    else
+      ns ++ "." ++ strCons (chr ((x `mod` 26) + ord 'a')) (show (x `div` 26))
+  show (UVal x) = show x
+
+public export
+data UConstraint = ULT UExp UExp -- strictly less than
+                 | ULE UExp UExp -- less than or equal
+
+export
+Eq UConstraint where
+  (ULT x1 y1) == (ULT x2 y2) = x1 == x2 && y1 == y2
+  (ULE x1 y1) == (ULE x2 y2) = x1 == x2 && y1 == y2
+  _ == _ = False
+
+export
+Show UConstraint where
+  show (ULT x y) = show x ++ " < "  ++ show y
+  show (ULE x y) = show x ++ " <= " ++ show y
+
+-- I'm not sure what this is for
+public export
+record UConstraintFC where
+  constructor MkUConstraintFC
+  uconstraint : UConstraint
+  ufc : FC
+
+export
+Eq UConstraintFC where
+  (MkUConstraintFC uc1 _) == (MkUConstraintFC uc2 _) = uc1 == uc2
+
+-- List of universe constraints with current UVar counter
+public export
+UConstraints : Type
+UConstraints = (Int, List UConstraint)
+
+export
+initUCs : UConstraints
+initUCs = (0, [])
+
+-- A label for universe constraints in the global state
+export
+data UCs : Type where
 
 public export
 data NVar : Name -> List Name -> Type where
