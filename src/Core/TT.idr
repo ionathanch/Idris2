@@ -659,6 +659,17 @@ Eq UExp where
   _ == _ = False
 
 export
+Ord UExp where
+  compare (UVar ns x) (UVar ms y) =
+    case compare ns ms of
+      GT => GT
+      LT => LT
+      EQ => compare x y
+  compare (UVal x) (UVal y) = compare x y
+  compare (UVar _ _) _ = GT
+  compare (UVal _)   _ = LT
+
+export
 Show UExp where
   show (UVar ns x) =
     if x < 26 then
@@ -678,11 +689,25 @@ Eq UConstraint where
   _ == _ = False
 
 export
+Ord UConstraint where
+  compare (ULT x1 y1) (ULT x2 y2) =
+    case compare x1 x2 of
+      GT => GT
+      LT => LT
+      EQ => compare y1 y2
+  compare (ULE x1 y1) (ULE x2 y2) =
+    case compare x1 x2 of
+      GT => GT
+      LT => LT
+      EQ => compare y1 y2
+  compare (ULT _ _) _ = GT
+  compare (ULE _ _) _ = LT
+
+export
 Show UConstraint where
   show (ULT x y) = show x ++ " < "  ++ show y
   show (ULE x y) = show x ++ " <= " ++ show y
 
--- I'm not sure what this is for
 public export
 record UConstraintFC where
   constructor MkUConstraintFC
@@ -691,7 +716,11 @@ record UConstraintFC where
 
 export
 Eq UConstraintFC where
-  (MkUConstraintFC uc1 _) == (MkUConstraintFC uc2 _) = uc1 == uc2
+  (MkUConstraintFC x _) == (MkUConstraintFC y _) = x == y
+
+export
+Ord UConstraintFC where
+  compare (MkUConstraintFC x _) (MkUConstraintFC y _) = compare x y
 
 -- List of universe constraints with current UVar counter
 public export

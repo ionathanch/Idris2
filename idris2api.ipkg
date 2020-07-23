@@ -51,6 +51,7 @@ modules =
     Core.Transform,
     Core.TT,
     Core.TTC,
+    Core.UConstraints,
     Core.Unify,
     Core.UnifyState,
     Core.Value,

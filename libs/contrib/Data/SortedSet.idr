@@ -55,6 +55,10 @@ intersection : (x, y : SortedSet k) -> SortedSet k
 intersection x y = difference x (difference x y)
 
 export
+filter : (k -> Bool) -> SortedSet k -> SortedSet k
+filter f x = foldr (\k, x => if f k then x else delete k x) x x
+
+export
 Ord k => Semigroup (SortedSet k) where
   (<+>) = union
 
