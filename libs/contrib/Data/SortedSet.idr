@@ -59,6 +59,10 @@ filter : (k -> Bool) -> SortedSet k -> SortedSet k
 filter f x = foldr (\k, x => if f k then x else delete k x) x x
 
 export
+singleton : Ord k => k -> SortedSet k
+singleton x = insert x empty
+
+export
 Ord k => Semigroup (SortedSet k) where
   (<+>) = union
 

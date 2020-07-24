@@ -87,39 +87,39 @@ treeLookup k (Branch3 t1 k1 t2 k2 t3) =
   else
     treeLookup k t3
 
-treeInsert' : Ord k => k -> v -> Tree n k v o -> Either (Tree n k v o) (Tree n k v o, k, Tree n k v o)
-treeInsert' k v (Leaf k' v') =
+treeInsertWith' : Ord k => (v -> v -> v) -> k -> v -> Tree n k v o -> Either (Tree n k v o) (Tree n k v o, k, Tree n k v o)
+treeInsertWith' f k v (Leaf k' v') =
   case compare k k' of
     LT => Right (Leaf k v, k, Leaf k' v')
-    EQ => Left (Leaf k v)
+    EQ => Left (Leaf k (f v v'))
     GT => Right (Leaf k' v', k', Leaf k v)
-treeInsert' k v (Branch2 t1 k' t2) =
+treeInsertWith' f k v (Branch2 t1 k' t2) =
   if k <= k' then
-    case treeInsert' k v t1 of
+    case treeInsertWith' f k v t1 of
       Left t1' => Left (Branch2 t1' k' t2)
       Right (a, b, c) => Left (Branch3 a b c k' t2)
   else
-    case treeInsert' k v t2 of
+    case treeInsertWith' f k v t2 of
       Left t2' => Left (Branch2 t1 k' t2')
       Right (a, b, c) => Left (Branch3 t1 k' a b c)
-treeInsert' k v (Branch3 t1 k1 t2 k2 t3) =
+treeInsertWith' f k v (Branch3 t1 k1 t2 k2 t3) =
   if k <= k1 then
-    case treeInsert' k v t1 of
+    case treeInsertWith' f k v t1 of
       Left t1' => Left (Branch3 t1' k1 t2 k2 t3)
       Right (a, b, c) => Right (Branch2 a b c, k1, Branch2 t2 k2 t3)
   else
     if k <= k2 then
-      case treeInsert' k v t2 of
+      case treeInsertWith' f k v t2 of
         Left t2' => Left (Branch3 t1 k1 t2' k2 t3)
         Right (a, b, c) => Right (Branch2 t1 k1 a, b, Branch2 c k2 t3)
     else
-      case treeInsert' k v t3 of
+      case treeInsertWith' f k v t3 of
         Left t3' => Left (Branch3 t1 k1 t2 k2 t3')
         Right (a, b, c) => Right (Branch2 t1 k1 t2, k2, Branch2 a b c)
 
-treeInsert : Ord k => k -> v -> Tree n k v o -> Either (Tree n k v o) (Tree (S n) k v o)
-treeInsert k v t =
-  case treeInsert' k v t of
+treeInsertWith : Ord k => (v -> v -> v) -> k -> v -> Tree n k v o -> Either (Tree n k v o) (Tree (S n) k v o)
+treeInsertWith f k v t =
+  case treeInsertWith' f k v t of
     Left t' => Left t'
     Right (a, b, c) => Right (Branch2 a b c)
 
@@ -208,12 +208,16 @@ lookup _ Empty = Nothing
 lookup k (M _ t) = treeLookup k t
 
 export
-insert : k -> v -> SortedMap k v -> SortedMap k v
-insert k v Empty = M Z (Leaf k v)
-insert k v (M _ t) =
-  case treeInsert k v t of
+insertWith : (v -> v -> v) -> k -> v -> SortedMap k v -> SortedMap k v
+insertWith _ k v Empty = M Z (Leaf k v)
+insertWith f k v (M _ t) =
+  case treeInsertWith f k v t of
     Left t' => (M _ t')
     Right t' => (M _ t')
+
+export
+insert : k -> v -> SortedMap k v -> SortedMap k v
+insert = insertWith const
 
 export
 singleton : Ord k => k -> v -> SortedMap k v
@@ -236,8 +240,12 @@ delete k (M (S n) t) =
     Right t' => (M _ t')
 
 export
+fromListWith : Ord k => (v -> v -> v) -> List (k, v) -> SortedMap k v
+fromListWith f l = foldl (flip (uncurry (insertWith f))) empty l
+
+export
 fromList : Ord k => List (k, v) -> SortedMap k v
-fromList l = foldl (flip (uncurry insert)) empty l
+fromList = fromListWith const
 
 export
 toList : SortedMap k v -> List (k, v)

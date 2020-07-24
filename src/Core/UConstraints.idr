@@ -41,17 +41,6 @@ varsIn : UConstraint -> List Var -- TODO
 -- varsIn (ULT x y) = [ MkVar ns v | UVar ns v <- [x, y] ]
 -- varsIn (ULE x y) = [ MkVar ns v | UVar ns v <- [x, y] ]
 
-initSolverState : Int -> Set UConstraintFC -> SolverState
-initSolverState maxULevel ucs =
-  let inpConstraints = sort . SortedSet.toList $ ucs
-      (initUnaryQueue, initQueue) = partition (\c => length (varsIn c.uconstraint) == 1) inpConstraints
-      queue = Q (initUnaryQueue ++ initQueue) (fromList (map uconstraint (initUnaryQueue ++ initQueue)))
-      domainVars = nub . concat $ map (varsIn . uconstraint) inpConstraints
-      domainStore = fromList $ map (\v => (v, (MkDomain 0 maxULevel, empty))) domainVars
-      consLHS = empty -- TODO
-      consRHS = empty -- TODO
-  in MkSolverState queue domainStore consLHS consRHS
-
 dropUnused : Set UConstraintFC -> Set UConstraintFC
 dropUnused xs =
   let cs = SortedSet.toList xs
@@ -83,16 +72,59 @@ dropUnused xs =
         Nothing => addIfUsed lhs cs cs'
         Just _ => addIfUsed lhs cs (insert c cs')
 
-solve : Int -> Ref SS SolverState -> Set UConstraintFC -> Core ()
--- TODO
+initSolverState : Int -> Set UConstraintFC -> SolverState
+initSolverState maxULevel ucs =
+  let inpConstraints = SortedSet.toList $ ucs
+      (initUnaryQueue, initQueue) = partition (\c => length (varsIn c.uconstraint) == 1) inpConstraints
+      queue = Q (initUnaryQueue ++ initQueue) (fromList (map uconstraint (initUnaryQueue ++ initQueue)))
+      domainStore = fromList
+        [ (v, (MkDomain 0 maxULevel, empty))
+        | v <- ordNub [ v
+                      | MkUConstraintFC c _ <- inpConstraints
+                      , v <- varsIn c
+                      ]
+        ]
+      consLHS = fromListWith SortedSet.union
+        [ (v, singleton (MkUConstraintFC c fc))
+        | (MkUConstraintFC c fc) <- inpConstraints
+        , let vars = varsIn c
+        , length vars > 1
+        , v <- vars
+        , lhs c == Just v
+        ]
+      consRHS = fromListWith SortedSet.union
+        [ (v, singleton (MkUConstraintFC c fc))
+        | (MkUConstraintFC c fc) <- inpConstraints
+        , let vars = varsIn c
+        , length vars > 1
+        , v <- vars
+        , lhs c == Just v
+        ]
+  in MkSolverState queue domainStore consLHS consRHS
+  where
+    ordNub : Ord k => List k -> List k
+    ordNub = SortedSet.toList . SortedSet.fromList
+
+    lhs : UConstraint -> Maybe Var
+    lhs (ULT (UVar ns x) _) = Just (MkVar ns x)
+    lhs (ULE (UVar ns x) _) = Just (MkVar ns x)
+    lhs _ = Nothing
+
+    rhs : UConstraint -> Maybe Var
+    rhs (ULT _ (UVar ns x)) = Just (MkVar ns x)
+    rhs (ULE _ (UVar ns x)) = Just (MkVar ns x)
+    rhs _ = Nothing
+
+solve : Int -> Set UConstraintFC -> Core ()
+solve maxULevel ucs = do
+  ss <- newRef SS $ initSolverState maxULevel ucs
+  pure () -- TODO
 
 -- When does UConstraints turn into Set UConstraintFC?
 export
 ucheck : Set UConstraintFC -> Core ()
-ucheck ucs = do
-  let maxULevel = 10
-  ss <- newRef SS $ initSolverState maxULevel ucs
-  solve maxULevel ss . filter (not . ignore) . dropUnused $ ucs
+ucheck ucs = do -- Why is the maximum universe level set to 10?
+  solve 10 . filter (not . ignore) . dropUnused $ ucs
   where
     ignore : UConstraintFC -> Bool
     ignore (MkUConstraintFC (ULE a b) _) = a == b
