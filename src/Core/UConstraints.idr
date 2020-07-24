@@ -9,6 +9,8 @@ import Data.SortedMap
 
 %default total
 
+-- Is it possible to use a type synonym in a dot pattern?
+-- e.g. Set.toList rather than SortedSet.toList.
 Set : Type -> Type
 Map : Type -> Type -> Type
 Set = SortedSet
@@ -37,9 +39,31 @@ record SolverState where
 
 data SS : Type where
 
-varsIn : UConstraint -> List Var -- TODO
--- varsIn (ULT x y) = [ MkVar ns v | UVar ns v <- [x, y] ]
--- varsIn (ULE x y) = [ MkVar ns v | UVar ns v <- [x, y] ]
+
+-- This function is why all subsequent functions
+-- have to be marked as `partial`.
+partial
+find : k -> Map k v -> v
+find k m =
+  let Just v = lookup k m
+  in v
+
+asPair : Domain -> (Int, Int)
+asPair (MkDomain l u) = (l, u)
+
+isWipedOut : Domain -> Bool
+isWipedOut (MkDomain l u) = l > u
+
+uvarToVar : UExp -> Maybe Var
+uvarToVar (UVar ns v) = Just $ MkVar ns v
+uvarToVar _ = Nothing
+
+-- For some reason the list comprehension version isn't convering:
+-- [ MkVar ns v | UVar ns v <- [a,b] ]
+varsIn : UConstraint -> List Var
+varsIn (ULT x y) = mapMaybe uvarToVar [x, y]
+varsIn (ULE x y) = mapMaybe uvarToVar [x, y]
+
 
 dropUnused : Set UConstraintFC -> Set UConstraintFC
 dropUnused xs =
@@ -115,16 +139,121 @@ initSolverState maxULevel ucs =
     rhs (ULE _ (UVar ns x)) = Just (MkVar ns x)
     rhs _ = Nothing
 
-solve : Int -> Set UConstraintFC -> Core ()
+partial
+updateUpperBoundOf : {auto ss : Ref SS SolverState} -> UConstraintFC -> UExp -> Int -> Core ()
+updateUpperBoundOf _ (UVal _) _ = pure ()
+updateUpperBoundOf suspect (UVar ns var) upper = do
+  doms <- domainStore <$> get SS
+  let (oldDom@(MkDomain lower _), suspects) = find (MkVar ns var) doms
+  let newDom = MkDomain lower upper
+  when (isWipedOut newDom) $ throw (InternalError "Universe constraints not satisfied.") -- TODO
+    {- lift $ Error $
+      UniverseError (ufc suspect) (UVar ns var)
+                    (asPair oldDom) (asPair newDom)
+                    (suspect : S.toList suspects) -}
+  let domainStore = insert (MkVar ns var) (newDom, insert suspect suspects) doms
+  modify SS $ \ss : SolverState => record { domainStore = domainStore } ss
+  addToQueueRHS (uconstraint suspect) (MkVar ns var)
+  where
+    addToQueueRHS : UConstraint -> Var -> Core ()
+    addToQueueRHS thisCons var = do
+      crhs <- consRHS <$> get SS
+      case lookup var crhs of
+        Nothing => pure ()
+        Just cs => do
+          Q list set <- queue <$> get SS
+          let set' = insert thisCons set
+          let newCons = [ c | c <- SortedSet.toList cs, not $ contains c.uconstraint set' ]
+          if isNil newCons
+            then pure ()
+            else do
+              let queue = Q (list ++ newCons) (foldr insert set (map uconstraint newCons))
+              modify SS $ \ss : SolverState => record { queue = queue } ss
+
+partial
+updateLowerBoundOf : {auto ss : Ref SS SolverState} -> UConstraintFC -> UExp -> Int -> Core ()
+updateLowerBoundOf _ (UVal _) _ = pure ()
+updateLowerBoundOf suspect (UVar ns var) lower = do
+  doms <- domainStore <$> get SS
+  let (oldDom@(MkDomain _ upper), suspects) = find (MkVar ns var) doms
+  let newDom = MkDomain lower upper
+  when (isWipedOut newDom) $ throw (InternalError "Universe constraints not satisfied.") -- TODO
+    {- lift $ Error $
+      UniverseError (ufc suspect) (UVar ns var)
+                    (asPair oldDom) (asPair newDom)
+                    (suspect : S.toList suspects) -}
+  let domainStore = insert (MkVar ns var) (newDom, insert suspect suspects) doms
+  modify SS $ \ss : SolverState => record { domainStore = domainStore } ss
+  addToQueueLHS (uconstraint suspect) (MkVar ns var)
+  where
+    addToQueueLHS : UConstraint -> Var -> Core ()
+    addToQueueLHS thisCons var = do
+      clhs <- consLHS <$> get SS
+      case lookup var clhs of
+        Nothing => pure ()
+        Just cs => do
+          Q list set <- queue <$> get SS
+          let set' = insert thisCons set
+          let newCons = [ c | c <- SortedSet.toList cs, not $ contains c.uconstraint set' ]
+          if isNil newCons
+            then pure ()
+            else do
+              let queue = Q (list ++ newCons) (foldr insert set (map uconstraint newCons))
+              modify SS $ \ss : SolverState => record { queue = queue } ss
+
+-- If not for `find`, `propagate` would actually be covering,
+-- but not inferrably total.
+partial
+propagate : {auto ss : Ref SS SolverState} -> Core ()
+propagate = do
+  mcons <- nextConstraint
+  case mcons of
+    Nothing => pure ()
+    Just (MkUConstraintFC cons fc) => do
+      case cons of
+        ULE a b => do
+          MkDomain lowerA upperA <- domainOf a
+          MkDomain lowerB upperB <- domainOf b
+          when (upperB < upperA) $ updateUpperBoundOf (MkUConstraintFC cons fc) a upperB
+          when (lowerA > lowerB) $ updateLowerBoundOf (MkUConstraintFC cons fc) b lowerA
+        ULT a b => do
+          MkDomain lowerA upperA <- domainOf a
+          MkDomain lowerB upperB <- domainOf b
+          let upperB_pred = upperB - 1
+          let lowerA_succ = lowerA + 1
+          when (upperB_pred < upperA) $ updateUpperBoundOf (MkUConstraintFC cons fc) a upperB_pred
+          when (lowerA_succ > lowerB) $ updateLowerBoundOf (MkUConstraintFC cons fc) b lowerA_succ
+      propagate
+  where
+    partial
+    domainOf : UExp -> Core Domain
+    domainOf (UVar ns var) = fst . (find $ MkVar ns var) . domainStore <$> get SS
+    domainOf (UVal val) = pure (MkDomain val val)
+
+    nextConstraint : Core (Maybe UConstraintFC)
+    nextConstraint = do
+      Q list set <- queue <$> get SS
+      case list of
+        [] => pure Nothing
+        (q :: qs) => do
+          modify SS $ \ss : SolverState => record { queue = Q qs (delete q.uconstraint set) } ss
+          pure (Just q)
+
+partial
+solve : Int -> Set UConstraintFC -> Core (Map Var Int)
 solve maxULevel ucs = do
   ss <- newRef SS $ initSolverState maxULevel ucs
-  pure () -- TODO
+  propagate
+  extractSolution
+  where
+    extractSolution : {auto ss : Ref SS SolverState} -> Core (Map Var Int)
+    extractSolution = map (\((MkDomain x _), _) => x) . domainStore <$> get SS
 
--- When does UConstraints turn into Set UConstraintFC?
-export
+export partial
 ucheck : Set UConstraintFC -> Core ()
 ucheck ucs = do -- Why is the maximum universe level set to 10?
   solve 10 . filter (not . ignore) . dropUnused $ ucs
+  pure ()
   where
     ignore : UConstraintFC -> Bool
     ignore (MkUConstraintFC (ULE a b) _) = a == b

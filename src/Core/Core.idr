@@ -564,6 +564,10 @@ export %inline
 put : (x : label) -> {auto ref : Ref x a} -> a -> Core ()
 put x {ref = MkRef io} val = coreLift (writeIORef io val)
 
+export %inline
+modify : (x : label) -> {auto ref : Ref x a} -> (a -> a) -> Core ()
+modify x {ref = MkRef io} f = coreLift (modifyIORef io f)
+
 export
 cond : List (Lazy Bool, Lazy a) -> a -> a
 cond [] def = def

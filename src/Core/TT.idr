@@ -8,6 +8,7 @@ import Data.List
 import Data.NameMap
 import Data.Vect
 import Data.Strings
+import Data.SortedSet
 import Decidable.Equality
 
 import public Algebra
@@ -647,7 +648,11 @@ export
 notCovering : Totality
 notCovering = MkTotality Unchecked (MissingCases [])
 
--- Universe expressions for universe cumulativity checking
+-- Universe expressions and constraints for cumulativity checking.
+-- Everything is prefixed with U (UConstraint, UConstraintFC, etc.)
+-- because we may want other kinds of constraint checking in the future,
+-- e.g. size constraints for termination checking using sized types?
+
 public export
 data UExp = UVar String Int -- universe variable, with source file to disambiguate
           | UVal Int -- explicit universe level
@@ -722,11 +727,14 @@ export
 Ord UConstraintFC where
   compare (MkUConstraintFC x _) (MkUConstraintFC y _) = compare x y
 
--- List of universe constraints with current UVar counter
 public export
 UConstraints : Type
 UConstraints = (Int, List UConstraint)
 
+-- TODO: Currently this is called in TTImp.Elab and TTImp.Elab.RunElab,
+-- i.e. there is a new UC state per elaboration.
+-- Should the UC state instead be global to an entire type checking session?
+-- Is there even a global state to store it in? Core itself doesn't contain state.
 export
 initUCs : UConstraints
 initUCs = (0, [])
@@ -734,6 +742,36 @@ initUCs = (0, [])
 -- A label for universe constraints in the global state
 export
 data UCs : Type where
+
+-- Ideally we'd have the following monadic Ref functions
+-- for accessing and mutating universe constraints,
+-- rather than exposing the implementation of UConstraints.
+--    getNextUVar = do (v, ucs) <- get UCs; put (v + 1, ucs) UCs; pure v
+--    addUConstraint uc = do (v, ucs) <- get UCs; put (v, uc :: ucs)
+-- This makes it easier to change the implementation in the future,
+-- e.g. to use incremental cycle detection instead of an explicit ucheck.
+-- But for now, we allow direct get/put/modify, and check only after
+-- adding FC information to constraints after elaboration.
+
+-- TODO: Maybe this doesn't belong here.
+-- It seems like v needs to be added to the global state after elaboration.
+-- https://github.com/idris-lang/Idris-dev/blob/master/src/Idris/AbsSyntax.hs#L733
+-- Also, where is this meant to be called? Not in Elab/RunElab,
+-- since they don't have FC.
+addUConstraints : FC -> UConstraints -> SortedSet UConstraintFC
+addUConstraints fc (v, ucs) = insertAll fc ucs SortedSet.empty
+  where
+    insertAll : FC -> List UConstraint -> SortedSet UConstraintFC -> SortedSet UConstraintFC
+    insertAll _ [] set = set
+    insertAll fc ((ULE (UVal 0) _) :: ucs) set = insertAll fc ucs set
+    insertAll fc (uc :: ucs) set =
+      let set' : Lazy (SortedSet UConstraintFC) = SortedSet.insert (MkUConstraintFC uc fc) set
+      in case uc of
+        ULE x y =>
+          if x == y
+            then insertAll fc ucs set
+            else insertAll fc ucs set'
+        _ => insertAll fc ucs set
 
 public export
 data NVar : Name -> List Name -> Type where
