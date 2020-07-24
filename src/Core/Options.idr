@@ -113,6 +113,7 @@ record ElabDirectives where
   lazyActive : Bool
   unboundImplicits : Bool
   totality : TotalReq
+  typeInType : Bool
   ambigLimit : Nat
   autoImplicitLimit : Nat
 
@@ -181,7 +182,7 @@ defaultSession = MkSessionOpts False False False Chez [] 0
 
 export
 defaultElab : ElabDirectives
-defaultElab = MkElabDirectives True True CoveringOnly 3 50
+defaultElab = MkElabDirectives True True CoveringOnly False 3 50
 
 export
 defaults : Options

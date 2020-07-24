@@ -735,10 +735,7 @@ public export
 UConstraints : Type
 UConstraints = (Int, List UConstraint)
 
--- TODO: Currently this is called in TTImp.Elab and TTImp.Elab.RunElab,
--- i.e. there is a new UC state per elaboration.
--- Should the UC state instead be global to an entire type checking session?
--- Is there even a global state to store it in? Core itself doesn't contain state.
+-- TODO: This should take the next uvar instead of using 0.
 export
 initUCs : UConstraints
 initUCs = (0, [])
@@ -755,13 +752,21 @@ data UCs : Type where
 -- This makes it easier to change the implementation in the future,
 -- e.g. to use incremental cycle detection instead of an explicit ucheck.
 -- But for now, we allow direct get/put/modify, and check only after
--- adding FC information to constraints after elaboration.
+-- adding constraints with FC information to the global context.
 
--- TODO: Maybe this doesn't belong here.
--- It seems like v needs to be added to the global state after elaboration.
--- https://github.com/idris-lang/Idris-dev/blob/master/src/Idris/AbsSyntax.hs#L733
--- Also, where is this meant to be called? Not in Elab/RunElab,
--- since they don't have FC.
+-- TODO: This definitely doesn't belong here.
+-- In Idris 1, it works like this:
+--    1. Type checking occurs with the next uvar and no constraints.
+--    2. After type checking, the collected constraints are added
+--       to the global set of constraints with their FC information
+--       and the next uvar is updated (that's nearly this function).
+--    3. At some point after addition, the universes are actually checked.
+--    * Global constraints are stored in the global environment (Context.Defs here)
+--    * The next uvar is stored in global context (Context.Context here)
+-- I think global constraints and the next uvar should be stored in the same place,
+-- but it's unclear whether that should be in Defs of Context.
+-- It's also unclear where addUConstraints should go, but it needs to return Core ()
+-- in order to have access to the global state.
 addUConstraints : FC -> UConstraints -> SortedSet UConstraintFC
 addUConstraints fc (v, ucs) = insertAll fc ucs SortedSet.empty
   where

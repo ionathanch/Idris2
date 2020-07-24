@@ -2100,6 +2100,13 @@ setDefaultTotalityOption tot
          put Ctxt (record { options->elabDirectives->totality = tot } defs)
 
 export
+setTypeInTypeOption : {auto c : Ref Ctxt Defs} ->
+                      Bool -> Core ()
+setTypeInTypeOption tit
+    = do defs <- get Ctxt
+         put Ctxt (record { options->elabDirectives->typeInType = tit } defs)
+
+export
 setAmbigLimit : {auto c : Ref Ctxt Defs} ->
                 Nat -> Core ()
 setAmbigLimit max
@@ -2133,6 +2140,13 @@ getDefaultTotalityOption : {auto c : Ref Ctxt Defs} ->
 getDefaultTotalityOption
     = do defs <- get Ctxt
          pure (totality (elabDirectives (options defs)))
+
+export
+getTypeInTypeOption : {auto c : Ref Ctxt Defs} ->
+                      Core Bool
+setTypeInTypeOption
+    = do defs <- get Ctxt
+         pure (typeInType (elabDirectives (options defs)))
 
 export
 getAmbigLimit : {auto c : Ref Ctxt Defs} ->
