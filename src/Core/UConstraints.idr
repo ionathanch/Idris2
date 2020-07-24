@@ -146,11 +146,11 @@ updateUpperBoundOf suspect (UVar ns var) upper = do
   doms <- domainStore <$> get SS
   let (oldDom@(MkDomain lower _), suspects) = find (MkVar ns var) doms
   let newDom = MkDomain lower upper
-  when (isWipedOut newDom) $ throw (InternalError "Universe constraints not satisfied.") -- TODO
-    {- lift $ Error $
-      UniverseError (ufc suspect) (UVar ns var)
-                    (asPair oldDom) (asPair newDom)
-                    (suspect : S.toList suspects) -}
+  when (isWipedOut newDom) $ throw $
+    UniverseError
+      (ufc suspect) (UVar ns var)
+      (asPair oldDom) (asPair newDom)
+      (suspect :: SortedSet.toList suspects)
   let domainStore = insert (MkVar ns var) (newDom, insert suspect suspects) doms
   modify SS $ \ss : SolverState => record { domainStore = domainStore } ss
   addToQueueRHS (uconstraint suspect) (MkVar ns var)
@@ -177,11 +177,11 @@ updateLowerBoundOf suspect (UVar ns var) lower = do
   doms <- domainStore <$> get SS
   let (oldDom@(MkDomain _ upper), suspects) = find (MkVar ns var) doms
   let newDom = MkDomain lower upper
-  when (isWipedOut newDom) $ throw (InternalError "Universe constraints not satisfied.") -- TODO
-    {- lift $ Error $
-      UniverseError (ufc suspect) (UVar ns var)
-                    (asPair oldDom) (asPair newDom)
-                    (suspect : S.toList suspects) -}
+  when (isWipedOut newDom) $ throw $
+    UniverseError
+      (ufc suspect) (UVar ns var)
+      (asPair oldDom) (asPair newDom)
+      (suspect :: SortedSet.toList suspects)
   let domainStore = insert (MkVar ns var) (newDom, insert suspect suspects) doms
   modify SS $ \ss : SolverState => record { domainStore = domainStore } ss
   addToQueueLHS (uconstraint suspect) (MkVar ns var)

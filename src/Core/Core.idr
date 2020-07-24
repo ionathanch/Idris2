@@ -66,6 +66,7 @@ data Error : Type where
      BadDataConType : FC -> Name -> Name -> Error
      NotCovering : FC -> Name -> Covering -> Error
      NotTotal : FC -> Name -> PartialReason -> Error
+     UniverseError : FC -> UExp -> (Int, Int) -> (Int, Int) -> List UConstraintFC -> Error
      LinearUsed : FC -> Nat -> Name -> Error
      LinearMisuse : FC -> Name -> RigCount -> RigCount -> Error
      BorrowPartial : {vars : _} ->
@@ -191,6 +192,12 @@ Show Error where
 
   show (NotTotal fc n r)
        = show fc ++ ":" ++ show n ++ " is not total"
+  show (UniverseError fc uexp old new suspects)
+       = show fc ++ ":Universe inconsistency." ++
+         "\n\tWorking on: " ++ show uexp ++
+         "\n\tOld domain: " ++ show old ++
+         "\n\tNew domain: " ++ show new ++
+         "\n\tInvolved constraints: " ++ showSep ", " (map show suspects)
   show (LinearUsed fc count n)
       = show fc ++ ":There are " ++ show count ++ " uses of linear name " ++ show n
   show (LinearMisuse fc n exp ctx)
@@ -323,6 +330,7 @@ getErrorLoc (BadTypeConType loc _) = Just loc
 getErrorLoc (BadDataConType loc _ _) = Just loc
 getErrorLoc (NotCovering loc _ _) = Just loc
 getErrorLoc (NotTotal loc _ _) = Just loc
+getErrorLoc (UniverseError loc _ _ _ _) = Just loc
 getErrorLoc (LinearUsed loc _ _) = Just loc
 getErrorLoc (LinearMisuse loc _ _ _) = Just loc
 getErrorLoc (BorrowPartial loc _ _ _) = Just loc

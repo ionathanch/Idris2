@@ -727,6 +727,10 @@ export
 Ord UConstraintFC where
   compare (MkUConstraintFC x _) (MkUConstraintFC y _) = compare x y
 
+export
+Show UConstraintFC where
+  show (MkUConstraintFC x _) = show x
+
 public export
 UConstraints : Type
 UConstraints = (Int, List UConstraint)
