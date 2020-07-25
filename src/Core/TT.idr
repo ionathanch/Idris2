@@ -743,25 +743,6 @@ initUCs v = (v, [])
 export
 data UCs : Type where
 
--- Ideally we'd have the following monadic Ref functions
--- for accessing and mutating universe constraints,
--- rather than exposing the implementation of UConstraints.
---    getNextUVar = do (v, ucs) <- get UCs; put (v + 1, ucs) UCs; pure v
---    addUConstraint uc = do (v, ucs) <- get UCs; put (v, uc :: ucs)
--- This makes it easier to change the implementation in the future,
--- e.g. to use incremental cycle detection instead of an explicit ucheck.
--- But for now, we allow direct get/put/modify, and check only after
--- adding constraints with FC information to the global context.
-
--- In Idris 1, it works like this:
---    1. Type checking occurs with the next uvar and no constraints.
---    2. After type checking, the collected constraints are added
---       to the global set of constraints with their FC information
---       and the next uvar is updated (that's nearly this function).
---    3. At some point after addition, the universes are actually checked.
---    * Global constraints are stored in the global environment (Context.Defs here)
---    * The next uvar is stored in global context (Context.Context here)
-
 public export
 data NVar : Name -> List Name -> Type where
      MkNVar : {i : Nat} -> (0 p : IsVar n i vars) -> NVar n vars

@@ -10,6 +10,7 @@ import Core.Hash
 import Core.Metadata
 import Core.Options
 import Core.Unify
+import Core.UConstraints
 
 import Parser.Unlit
 
@@ -38,6 +39,7 @@ processDecl : {auto c : Ref Ctxt Defs} ->
 processDecl decl
     = catch (do impdecls <- desugarDecl [] decl
                 traverse (Check.processDecl [] (MkNested []) []) impdecls
+                when (not !getTypeInTypeOption) $ ucheck !getUConstraints -- TODO: Is this the right place to ucheck...?
                 pure Nothing)
             (\err => do giveUpConstraints -- or we'll keep trying...
                         pure (Just err))

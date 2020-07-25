@@ -82,11 +82,11 @@ elabScript fc nest env (NDCon nfc nm t ar args) exp
              ttimp' <- evalClosure defs ttimp
              tidx <- resolveName (UN "[elaborator script]")
              e <- newRef EST (initEState tidx env)
-             v <- getNextUVar
-             l <- newRef UCs (initUCs v)
+             l <- newRef UCs (initUCs !getNextUVar)
              (checktm, _) <- runDelays 0 $
                      check {l} {e} top (initElabInfo InExpr) nest env !(reify defs ttimp')
                            (Just (glueBack defs env exp'))
+             addUConstraints fc !(get UCs)
              empty <- clearDefs defs
              nf empty env checktm
     elabCon defs "Quote" [exp, tm]

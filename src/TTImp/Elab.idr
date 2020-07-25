@@ -117,11 +117,14 @@ elabTermSub {vars} defining mode opts nest env env' sub tm ty
 
          defs <- get Ctxt
          e <- newRef EST (initEStateSub defining env' sub)
-         v <- getNextUVar
-         l <- newRef UCs (initUCs v)
+         l <- newRef UCs (initUCs !getNextUVar)
          let rigc = getRigNeeded mode
 
          (chktm, chkty) <- check {l} {e} rigc (initElabInfo mode) nest env tm ty
+
+         -- Add universe constraints to global context
+         addUConstraints (getFC tm) !(get UCs)
+
          -- Final retry of constraints and delayed elaborations
          -- - Solve any constraints, then retry any delayed elaborations
          -- - Finally, last attempts at solving constraints, but this

@@ -9,16 +9,9 @@ import Data.SortedMap
 
 %default total
 
--- Is it possible to use a type synonym in a dot pattern?
--- e.g. Set.toList rather than SortedSet.toList.
-Set : Type -> Type
-Map : Type -> Type -> Type
-Set = SortedSet
-Map = SortedMap
-
 data Var = MkVar String Int
 data Domain = MkDomain Int Int
-data Queue = Q (List UConstraintFC) (Set UConstraint)
+data Queue = Q (List UConstraintFC) (SortedSet UConstraint)
 
 Eq Var where
   (MkVar s i) == (MkVar t j) = s == t && i == j
@@ -30,23 +23,24 @@ Ord Var where
       LT => LT
       EQ => compare i j
 
+Show Var where
+  show (MkVar ns x) = show (UVar ns x)
+
 record SolverState where
   constructor MkSolverState
   queue : Queue
-  domainStore : Map Var (Domain, Set UConstraintFC)
-  consLHS : Map Var (Set UConstraintFC)
-  consRHS : Map Var (Set UConstraintFC)
+  domainStore : SortedMap Var (Domain, SortedSet UConstraintFC)
+  consLHS : SortedMap Var (SortedSet UConstraintFC)
+  consRHS : SortedMap Var (SortedSet UConstraintFC)
 
 data SS : Type where
 
 
--- This function is why all subsequent functions
--- have to be marked as `partial`.
-partial
-find : k -> Map k v -> v
+find : Show k => k -> SortedMap k v -> Core v
 find k m =
-  let Just v = lookup k m
-  in v
+  case lookup k m of
+    Just v => pure v
+    Nothing => throw (InternalError $ "UConstraints: Universe " ++ show k ++ " not found.")
 
 asPair : Domain -> (Int, Int)
 asPair (MkDomain l u) = (l, u)
@@ -65,7 +59,7 @@ varsIn (ULT x y) = mapMaybe uvarToVar [x, y]
 varsIn (ULE x y) = mapMaybe uvarToVar [x, y]
 
 
-dropUnused : Set UConstraintFC -> Set UConstraintFC
+dropUnused : SortedSet UConstraintFC -> SortedSet UConstraintFC
 dropUnused xs =
   let cs = SortedSet.toList xs
       onLHS = countLHS cs empty
@@ -79,7 +73,7 @@ dropUnused xs =
     getRHS (ULT _ y) = y
     getRHS (ULE _ y) = y
 
-    countLHS : List UConstraintFC -> Map UExp Int -> Map UExp Int
+    countLHS : List UConstraintFC -> SortedMap UExp Int -> SortedMap UExp Int
     countLHS [] ms = ms
     countLHS (c :: cs) ms =
       let lhvar = getLHS c.uconstraint
@@ -88,7 +82,7 @@ dropUnused xs =
                   Just v => v + 2 in
           countLHS cs (insert lhvar num ms)
     
-    addIfUsed : Map UExp Int -> List UConstraintFC -> Set UConstraintFC -> Set UConstraintFC
+    addIfUsed : SortedMap UExp Int -> List UConstraintFC -> SortedSet UConstraintFC -> SortedSet UConstraintFC
     addIfUsed lhs [] cs' = cs'
     addIfUsed lhs (c :: cs) cs' =
       let rhvar = getRHS c.uconstraint in
@@ -96,7 +90,7 @@ dropUnused xs =
         Nothing => addIfUsed lhs cs cs'
         Just _ => addIfUsed lhs cs (insert c cs')
 
-initSolverState : Int -> Set UConstraintFC -> SolverState
+initSolverState : Int -> SortedSet UConstraintFC -> SolverState
 initSolverState maxULevel ucs =
   let inpConstraints = SortedSet.toList $ ucs
       (initUnaryQueue, initQueue) = partition (\c => length (varsIn c.uconstraint) == 1) inpConstraints
@@ -139,12 +133,11 @@ initSolverState maxULevel ucs =
     rhs (ULE _ (UVar ns x)) = Just (MkVar ns x)
     rhs _ = Nothing
 
-partial
 updateUpperBoundOf : {auto ss : Ref SS SolverState} -> UConstraintFC -> UExp -> Int -> Core ()
 updateUpperBoundOf _ (UVal _) _ = pure ()
 updateUpperBoundOf suspect (UVar ns var) upper = do
   doms <- domainStore <$> get SS
-  let (oldDom@(MkDomain lower _), suspects) = find (MkVar ns var) doms
+  (oldDom@(MkDomain lower _), suspects) <- find (MkVar ns var) doms
   let newDom = MkDomain lower upper
   when (isWipedOut newDom) $ throw $
     UniverseError
@@ -170,12 +163,11 @@ updateUpperBoundOf suspect (UVar ns var) upper = do
               let queue = Q (list ++ newCons) (foldr insert set (map uconstraint newCons))
               modify SS $ \ss : SolverState => record { queue = queue } ss
 
-partial
 updateLowerBoundOf : {auto ss : Ref SS SolverState} -> UConstraintFC -> UExp -> Int -> Core ()
 updateLowerBoundOf _ (UVal _) _ = pure ()
 updateLowerBoundOf suspect (UVar ns var) lower = do
   doms <- domainStore <$> get SS
-  let (oldDom@(MkDomain _ upper), suspects) = find (MkVar ns var) doms
+  (oldDom@(MkDomain _ upper), suspects) <- find (MkVar ns var) doms
   let newDom = MkDomain lower upper
   when (isWipedOut newDom) $ throw $
     UniverseError
@@ -201,9 +193,7 @@ updateLowerBoundOf suspect (UVar ns var) lower = do
               let queue = Q (list ++ newCons) (foldr insert set (map uconstraint newCons))
               modify SS $ \ss : SolverState => record { queue = queue } ss
 
--- If not for `find`, `propagate` would actually be covering,
--- but not inferrably total.
-partial
+covering
 propagate : {auto ss : Ref SS SolverState} -> Core ()
 propagate = do
   mcons <- nextConstraint
@@ -225,9 +215,11 @@ propagate = do
           when (lowerA_succ > lowerB) $ updateLowerBoundOf (MkUConstraintFC cons fc) b lowerA_succ
       propagate
   where
-    partial
     domainOf : UExp -> Core Domain
-    domainOf (UVar ns var) = fst . (find $ MkVar ns var) . domainStore <$> get SS
+    domainOf (UVar ns var) = do
+      domainStore <- domainStore <$> get SS
+      (domain, _) <- find (MkVar ns var) domainStore
+      pure domain
     domainOf (UVal val) = pure (MkDomain val val)
 
     nextConstraint : Core (Maybe UConstraintFC)
@@ -239,18 +231,18 @@ propagate = do
           modify SS $ \ss : SolverState => record { queue = Q qs (delete q.uconstraint set) } ss
           pure (Just q)
 
-partial
-solve : Int -> Set UConstraintFC -> Core (Map Var Int)
+covering
+solve : Int -> SortedSet UConstraintFC -> Core (SortedMap Var Int)
 solve maxULevel ucs = do
   ss <- newRef SS $ initSolverState maxULevel ucs
   propagate
   extractSolution
   where
-    extractSolution : {auto ss : Ref SS SolverState} -> Core (Map Var Int)
+    extractSolution : {auto ss : Ref SS SolverState} -> Core (SortedMap Var Int)
     extractSolution = map (\((MkDomain x _), _) => x) . domainStore <$> get SS
 
-export partial
-ucheck : Set UConstraintFC -> Core ()
+export covering
+ucheck : SortedSet UConstraintFC -> Core ()
 ucheck ucs = do -- Why is the maximum universe level set to 10?
   solve 10 . filter (not . ignore) . dropUnused $ ucs
   pure ()
