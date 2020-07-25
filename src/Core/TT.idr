@@ -735,10 +735,9 @@ public export
 UConstraints : Type
 UConstraints = (Int, List UConstraint)
 
--- TODO: This should take the next uvar instead of using 0.
 export
-initUCs : UConstraints
-initUCs = (0, [])
+initUCs : Int -> UConstraints
+initUCs v = (v, [])
 
 -- A label for universe constraints in the global state
 export
@@ -754,7 +753,6 @@ data UCs : Type where
 -- But for now, we allow direct get/put/modify, and check only after
 -- adding constraints with FC information to the global context.
 
--- TODO: This definitely doesn't belong here.
 -- In Idris 1, it works like this:
 --    1. Type checking occurs with the next uvar and no constraints.
 --    2. After type checking, the collected constraints are added
@@ -763,24 +761,6 @@ data UCs : Type where
 --    3. At some point after addition, the universes are actually checked.
 --    * Global constraints are stored in the global environment (Context.Defs here)
 --    * The next uvar is stored in global context (Context.Context here)
--- I think global constraints and the next uvar should be stored in the same place,
--- but it's unclear whether that should be in Defs of Context.
--- It's also unclear where addUConstraints should go, but it needs to return Core ()
--- in order to have access to the global state.
-addUConstraints : FC -> UConstraints -> SortedSet UConstraintFC
-addUConstraints fc (v, ucs) = insertAll fc ucs SortedSet.empty
-  where
-    insertAll : FC -> List UConstraint -> SortedSet UConstraintFC -> SortedSet UConstraintFC
-    insertAll _ [] set = set
-    insertAll fc ((ULE (UVal 0) _) :: ucs) set = insertAll fc ucs set
-    insertAll fc (uc :: ucs) set =
-      let set' : Lazy (SortedSet UConstraintFC) = SortedSet.insert (MkUConstraintFC uc fc) set
-      in case uc of
-        ULE x y =>
-          if x == y
-            then insertAll fc ucs set
-            else insertAll fc ucs set'
-        _ => insertAll fc ucs set
 
 public export
 data NVar : Name -> List Name -> Type where

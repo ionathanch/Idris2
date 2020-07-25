@@ -117,7 +117,8 @@ elabTermSub {vars} defining mode opts nest env env' sub tm ty
 
          defs <- get Ctxt
          e <- newRef EST (initEStateSub defining env' sub)
-         l <- newRef UCs initUCs
+         v <- getNextUVar
+         l <- newRef UCs (initUCs v)
          let rigc = getRigNeeded mode
 
          (chktm, chkty) <- check {l} {e} rigc (initElabInfo mode) nest env tm ty

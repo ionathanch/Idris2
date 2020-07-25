@@ -16,6 +16,7 @@ import Data.IOArray
 import Data.List
 import Data.NameMap
 import Data.StringMap
+import Data.SortedSet
 
 import System
 import System.Clock
@@ -324,7 +325,8 @@ record Context where
     branchDepth : Nat
     -- Things which we're going to add, if this branch succeeds
     staging : IntMap ContextEntry
-
+    -- The next universe variable to use and the constraints so far
+    uconstraints : (Int, SortedSet UConstraintFC)
     -- Namespaces which are visible (i.e. have been imported)
     -- This only matters during evaluation and type checking, to control
     -- access in a program - in all other cases, we'll assume everything is
@@ -355,7 +357,7 @@ initCtxtS : Int -> Core Context
 initCtxtS s
     = do arr <- coreLift $ newArray s
          aref <- newRef Arr arr
-         pure (MkContext 0 0 empty empty aref 0 empty [["_PE"]] False False empty)
+         pure (MkContext 0 0 empty empty aref 0 empty (0, empty) [["_PE"]] False False empty)
 
 export
 initCtxt : Core Context
@@ -1413,6 +1415,43 @@ getSizeChange loc n
          pure $ sizeChange def
 
 export
+getUConstraints : {auto c : Ref Ctxt Defs} ->
+                  Core (SortedSet UConstraintFC)
+getUConstraints 
+    = do defs <- get Ctxt
+         pure $ (snd (uconstraints (gamma defs)))
+
+export
+getNextUVar : {auto c : Ref Ctxt Defs} ->
+              Core Int
+getNextUVar
+    = do defs <- get Ctxt
+         let (v, ucs) = uconstraints (gamma defs)
+         modify Ctxt $ record { gamma.uconstraints = (v + 1, ucs)}
+         pure v
+
+export
+addUConstraints : {auto c : Ref Ctxt Defs} ->
+                  FC -> UConstraints -> Core ()
+addUConstraints fc (v, ucs) = do
+  ucset <- getUConstraints
+  let ucset = insertAll fc ucs ucset
+  modify Ctxt $ record { gamma.uconstraints = (v, ucset) }
+  pure ()
+  where
+    insertAll : FC -> List UConstraint -> SortedSet UConstraintFC -> SortedSet UConstraintFC
+    insertAll _ [] set = set
+    insertAll fc ((ULE (UVal 0) _) :: ucs) set = insertAll fc ucs set
+    insertAll fc (uc :: ucs) set =
+      let set' : Lazy (SortedSet UConstraintFC) = SortedSet.insert (MkUConstraintFC uc fc) set
+      in case uc of
+        ULE x y =>
+          if x == y
+            then insertAll fc ucs set
+            else insertAll fc ucs set'
+        _ => insertAll fc ucs set
+
+export
 setVisibility : {auto c : Ref Ctxt Defs} ->
                 FC -> Name -> Visibility -> Core ()
 setVisibility fc n vis
@@ -2144,7 +2183,7 @@ getDefaultTotalityOption
 export
 getTypeInTypeOption : {auto c : Ref Ctxt Defs} ->
                       Core Bool
-setTypeInTypeOption
+getTypeInTypeOption
     = do defs <- get Ctxt
          pure (typeInType (elabDirectives (options defs)))
 

@@ -114,6 +114,12 @@ perror (NotCovering fc n (NonCoveringCall ns))
                            _ => "s: " ++ showSep ", " (map show ns)
 perror (NotTotal fc n r)
     = pure $ !(prettyName n) ++ " is not total:\n\t" ++ show r ++ "\nat:\n" ++ !(ploc fc)
+perror (UniverseError fc uexp old new suspects)
+    = pure $ "Universe inconsistency at:\n" ++ !(ploc fc) ++
+        "\n\tWorking on: " ++ show uexp ++
+        "\n\tOld domain: " ++ show old ++
+        "\n\tNew domain: " ++ show new ++
+        "\n\tInvolved constraints: " ++ showSep ", " (map show suspects)
 perror (LinearUsed fc count n)
     = pure $ "There are " ++ show count ++ " uses of linear name " ++ sugarName n ++ " at:\n" ++ !(ploc fc)
 perror (LinearMisuse fc n exp ctx)
