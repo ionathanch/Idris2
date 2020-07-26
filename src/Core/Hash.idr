@@ -101,6 +101,10 @@ Hashable ty => Hashable (Binder ty) where
 Hashable (Var vars) where
   hashWithSalt h (MkVar {i} _) = hashWithSalt h i
 
+Hashable UExp where
+  hashWithSalt h (UVar ns x) = h `hashWithSalt` 0 `hashWithSalt` ns `hashWithSalt` x
+  hashWithSalt h (UVal x) = h `hashWithSalt` 1 `hashWithSalt` x
+
 mutual
   export
   Hashable (Term vars) where

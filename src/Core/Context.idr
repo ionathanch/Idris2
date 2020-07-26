@@ -357,7 +357,7 @@ initCtxtS : Int -> Core Context
 initCtxtS s
     = do arr <- coreLift $ newArray s
          aref <- newRef Arr arr
-         pure (MkContext 0 0 empty empty aref 0 empty (0, empty) [["_PE"]] False False empty)
+         pure (MkContext 0 0 empty empty aref 0 empty (initUVar, empty) [["_PE"]] False False empty)
 
 export
 initCtxt : Core Context

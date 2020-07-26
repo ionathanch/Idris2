@@ -373,6 +373,120 @@ export
 Show (Var ns) where
   show (MkVar {i} _) = show i
 
+-- Universe expressions and constraints for cumulativity checking.
+
+public export
+data UExp = UVar String Int -- universe variable, with source file to disambiguate
+          | UVal Int -- explicit universe level
+
+export
+Eq UExp where
+  (UVar ns x) == (UVar ms y) = ns == ms && x == y
+  (UVal x)    == (UVal y)    = x == y
+  _ == _ = False
+
+export
+Ord UExp where
+  compare (UVar ns x) (UVar ms y) =
+    case compare ns ms of
+      GT => GT
+      LT => LT
+      EQ => compare x y
+  compare (UVal x) (UVal y) = compare x y
+  compare (UVar _ _) _ = GT
+  compare (UVal _)   _ = LT
+
+export
+Show UExp where
+  show (UVar ns x) =
+    if x < 26 then
+      ns ++ "." ++ singleton (chr (x + ord 'a'))
+    else
+      ns ++ "." ++ strCons (chr ((x `mod` 26) + ord 'a')) (show (x `div` 26))
+  show (UVal x) = show x
+
+-- We reserve three universe level variables for primitives:
+-- * believe_me : {a : Type} -> {b : Type} -> a -> b
+-- * idris_crash : {a : Type} -> String -> a
+-- believe_me may be used temporarily in proofs,
+-- so we definitely want the universes to work out.
+-- This is not so important for idris_crash.
+export
+believeMeAUExp : UExp
+believeMeAUExp = (UVar "" 0)
+
+export
+believeMeBUExp : UExp
+believeMeBUExp = (UVar "" 1)
+
+export
+crashUExp : UExp
+crashUExp = (UVar "" 2)
+
+export
+initUVar : Int
+initUVar = 3
+
+public export
+data UConstraint = ULT UExp UExp -- strictly less than
+                 | ULE UExp UExp -- less than or equal
+
+export
+Eq UConstraint where
+  (ULT x1 y1) == (ULT x2 y2) = x1 == x2 && y1 == y2
+  (ULE x1 y1) == (ULE x2 y2) = x1 == x2 && y1 == y2
+  _ == _ = False
+
+export
+Ord UConstraint where
+  compare (ULT x1 y1) (ULT x2 y2) =
+    case compare x1 x2 of
+      GT => GT
+      LT => LT
+      EQ => compare y1 y2
+  compare (ULE x1 y1) (ULE x2 y2) =
+    case compare x1 x2 of
+      GT => GT
+      LT => LT
+      EQ => compare y1 y2
+  compare (ULT _ _) _ = GT
+  compare (ULE _ _) _ = LT
+
+export
+Show UConstraint where
+  show (ULT x y) = show x ++ " < "  ++ show y
+  show (ULE x y) = show x ++ " <= " ++ show y
+
+public export
+record UConstraintFC where
+  constructor MkUConstraintFC
+  uconstraint : UConstraint
+  ufc : FC
+
+export
+Eq UConstraintFC where
+  (MkUConstraintFC x _) == (MkUConstraintFC y _) = x == y
+
+export
+Ord UConstraintFC where
+  compare (MkUConstraintFC x _) (MkUConstraintFC y _) = compare x y
+
+export
+Show UConstraintFC where
+  show (MkUConstraintFC x _) = show x
+
+public export
+UConstraints : Type
+UConstraints = (Int, List UConstraint)
+
+export
+initUCs : Int -> UConstraints
+initUCs v = (v, [])
+
+-- A label for universe constraints in the global state
+export
+data UCs : Type where
+
 namespace CList
   -- A list correspoding to another list
   public export
@@ -647,101 +761,6 @@ isTotal = MkTotality Unchecked IsCovering
 export
 notCovering : Totality
 notCovering = MkTotality Unchecked (MissingCases [])
-
--- Universe expressions and constraints for cumulativity checking.
--- Everything is prefixed with U (UConstraint, UConstraintFC, etc.)
--- because we may want other kinds of constraint checking in the future,
--- e.g. size constraints for termination checking using sized types?
-
-public export
-data UExp = UVar String Int -- universe variable, with source file to disambiguate
-          | UVal Int -- explicit universe level
-
-export
-Eq UExp where
-  (UVar ns x) == (UVar ms y) = ns == ms && x == y
-  (UVal x)    == (UVal y)    = x == y
-  _ == _ = False
-
-export
-Ord UExp where
-  compare (UVar ns x) (UVar ms y) =
-    case compare ns ms of
-      GT => GT
-      LT => LT
-      EQ => compare x y
-  compare (UVal x) (UVal y) = compare x y
-  compare (UVar _ _) _ = GT
-  compare (UVal _)   _ = LT
-
-export
-Show UExp where
-  show (UVar ns x) =
-    if x < 26 then
-      ns ++ "." ++ singleton (chr (x + ord 'a'))
-    else
-      ns ++ "." ++ strCons (chr ((x `mod` 26) + ord 'a')) (show (x `div` 26))
-  show (UVal x) = show x
-
-public export
-data UConstraint = ULT UExp UExp -- strictly less than
-                 | ULE UExp UExp -- less than or equal
-
-export
-Eq UConstraint where
-  (ULT x1 y1) == (ULT x2 y2) = x1 == x2 && y1 == y2
-  (ULE x1 y1) == (ULE x2 y2) = x1 == x2 && y1 == y2
-  _ == _ = False
-
-export
-Ord UConstraint where
-  compare (ULT x1 y1) (ULT x2 y2) =
-    case compare x1 x2 of
-      GT => GT
-      LT => LT
-      EQ => compare y1 y2
-  compare (ULE x1 y1) (ULE x2 y2) =
-    case compare x1 x2 of
-      GT => GT
-      LT => LT
-      EQ => compare y1 y2
-  compare (ULT _ _) _ = GT
-  compare (ULE _ _) _ = LT
-
-export
-Show UConstraint where
-  show (ULT x y) = show x ++ " < "  ++ show y
-  show (ULE x y) = show x ++ " <= " ++ show y
-
-public export
-record UConstraintFC where
-  constructor MkUConstraintFC
-  uconstraint : UConstraint
-  ufc : FC
-
-export
-Eq UConstraintFC where
-  (MkUConstraintFC x _) == (MkUConstraintFC y _) = x == y
-
-export
-Ord UConstraintFC where
-  compare (MkUConstraintFC x _) (MkUConstraintFC y _) = compare x y
-
-export
-Show UConstraintFC where
-  show (MkUConstraintFC x _) = show x
-
-public export
-UConstraints : Type
-UConstraints = (Int, List UConstraint)
-
-export
-initUCs : Int -> UConstraints
-initUCs v = (v, [])
-
--- A label for universe constraints in the global state
-export
-data UCs : Type where
 
 public export
 data NVar : Name -> List Name -> Type where
